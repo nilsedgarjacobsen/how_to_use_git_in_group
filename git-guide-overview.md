@@ -1,0 +1,657 @@
+# Guide 0: Git-grunder och snabbreferens för teamarbete
+
+## Innehåll
+1. [Hur Git fungerar - grundläggande koncept](#hur-git-fungerar)
+2. [Vanligaste kommandona](#vanligaste-kommandona)
+3. [Beslutsträd - vilken guide behöver jag?](#beslutsträd)
+4. [Team-conventions och best practices](#team-conventions)
+5. [Snabbreferens - cheat sheet](#snabbreferens)
+
+---
+
+## Hur Git fungerar - grundläggande koncept
+
+### De tre tillstånden
+
+Git har tre huvudsakliga tillstånd där dina filer kan befinna sig:
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│   Working       │      │    Staging      │      │   Repository    │
+│   Directory     │─────▶│     Area        │─────▶│   (Commits)     │
+│                 │ add  │                 │commit│                 │
+│  Dina filer     │      │  Redo att       │      │  Permanent      │
+│  på disken      │      │  committas      │      │  historik       │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+**Working Directory:**
+- Filerna som du ser och redigerar
+- Ändringar som inte sparats i Git än
+- Status: "modified" eller "untracked"
+
+**Staging Area (Index):**
+- Förbereder ändringar för nästa commit
+- Du väljer exakt vad som ska committas
+- Status: "staged" (gröna i `git status`)
+
+**Repository (Commits):**
+- Permanent historik av alla commits
+- Varje commit är en snapshot av hela projektet
+- Kan ses som en graf av commits
+
+### Commits - snapshots, inte deltas
+
+**Viktigt att förstå:**
+```
+Git sparar INTE ändringar, utan hela tillståndet!
+
+Commit A: [fil1 v1, fil2 v1, fil3 v1]
+Commit B: [fil1 v2, fil2 v1, fil3 v1]  ← Hela tillståndet sparas
+Commit C: [fil1 v2, fil2 v2, fil3 v1]
+```
+
+Detta gör att du kan:
+- Hoppa till VILKEN commit som helst omedelbart
+- Jämföra VILKA två versioner som helst
+- Brancha och merga effektivt
+
+### Branches - pekare till commits
+
+En branch är bara en pekare till ett commit:
+
+```
+main    →  A---B---C
+            \
+feature →    D---E
+
+HEAD → feature (du är här)
+```
+
+**HEAD:** Speciell pekare som visar var du är just nu
+
+**Skapa branch = skapa ny pekare**
+**Byta branch = flytta HEAD**
+**Commit = skapa nytt commit och flytta branch-pekaren**
+
+### Remote vs Local
+
+```
+┌─────────────────────────────────────┐
+│          REMOTE (GitHub/GitLab)     │
+│                                     │
+│    origin/main                      │
+│    origin/feature-branch            │
+└─────────────────────────────────────┘
+          ▲                 │
+    push  │                 │  fetch/pull
+          │                 ▼
+┌─────────────────────────────────────┐
+│          LOCAL (Din dator)          │
+│                                     │
+│    main                             │
+│    feature-branch                   │
+└─────────────────────────────────────┘
+```
+
+**origin:** Default-namn för remote repository
+**fetch:** Hämtar data från remote (uppdaterar inte dina branches)
+**pull:** fetch + merge (hämtar OCH uppdaterar)
+**push:** Skickar dina commits till remote
+
+### Merge vs Rebase
+
+**Merge - kombinera två branches:**
+```
+main:    A---B---C
+          \       \
+feature:   D---E---M  (M = merge commit)
+```
+- Bevarar historik
+- Skapar merge-commit
+- Säkert och enkelt
+
+**Rebase - "flytta" commits:**
+```
+Före:  main:    A---B---C
+                 \
+       feature:   D---E
+
+Efter: main:    A---B---C
+                         \
+       feature:           D'---E'  (nya commit-ID)
+```
+- Linjär historik
+- Omskriver historik (nya commit-ID)
+- Renare men mer komplext
+
+**Regel:** Använd merge på delade branches, rebase på dina privata
+
+---
+
+## Vanligaste kommandona
+
+### Setup och konfiguration
+
+```bash
+# Konfigurera användare (gör detta först!)
+git config --global user.name "Ditt Namn"
+git config --global user.email "din@email.com"
+
+# Visa konfiguration
+git config --list
+
+# Konfigurera editor
+git config --global core.editor "code --wait"  # VS Code
+git config --global core.editor "idea"         # IntelliJ
+```
+
+### Skapa och klona
+
+```bash
+# Skapa nytt repo
+git init
+
+# Klona från remote
+git clone https://github.com/user/repo.git
+git clone git@github.com:user/repo.git  # SSH
+```
+
+### Dagligt arbete
+
+```bash
+# Kolla status
+git status
+
+# Se vad som ändrats (ej staged)
+git diff
+
+# Se vad som är staged
+git diff --staged
+
+# Lägg till filer till staging
+git add fil.java
+git add .                    # Alla ändringar
+git add src/                 # Alla i mapp
+
+# Committa
+git commit -m "Beskrivande meddelande"
+git commit -am "Message"     # add + commit (bara modified, ej untracked)
+
+# Push till remote
+git push origin branch-name
+git push                     # Push current branch
+```
+
+### Branches
+
+```bash
+# Visa branches
+git branch                   # Lokala
+git branch -a                # Alla (inkl remote)
+
+# Skapa branch
+git branch feature-name
+
+# Skapa och byt till branch
+git checkout -b feature-name
+git switch -c feature-name   # Nyare syntax
+
+# Byt branch
+git checkout branch-name
+git switch branch-name       # Nyare syntax
+
+# Ta bort branch
+git branch -d branch-name    # Säker (bara om mergad)
+git branch -D branch-name    # Force delete
+
+# Ta bort remote branch
+git push origin --delete branch-name
+```
+
+### Hämta uppdateringar
+
+```bash
+# Hämta från remote (uppdaterar inte dina branches)
+git fetch origin
+
+# Hämta och merga
+git pull origin main
+git pull                     # Pull current branch
+
+# Hämta med rebase
+git pull --rebase origin main
+```
+
+### Historik och loggar
+
+```bash
+# Se commit-historik
+git log
+git log --oneline            # Kompakt
+git log --graph --oneline    # Med graf
+git log -5                   # Senaste 5
+
+# Se ändringar i commit
+git show abc123
+git show HEAD                # Senaste commit
+
+# Sök i historik
+git log --grep="bugfix"
+git log --author="Alice"
+git log --since="2 weeks ago"
+```
+
+### Ångra och fixa
+
+```bash
+# Ångra unstaged ändringar
+git restore fil.java
+git checkout -- fil.java     # Gamla sättet
+
+# Ta bort från staging (behåll ändringar)
+git restore --staged fil.java
+git reset HEAD fil.java      # Gamla sättet
+
+# Ändra senaste commit
+git commit --amend
+
+# Ångra senaste commit (behåll ändringar)
+git reset --soft HEAD~1
+
+# Ångra senaste commit (ta bort ändringar)
+git reset --hard HEAD~1
+
+# Revert commit (skapa ny commit som ångrar)
+git revert abc123
+```
+
+### Stash - temporär lagring
+
+```bash
+# Spara uncommitted changes
+git stash
+git stash push -m "Beskrivning"
+
+# Visa stashes
+git stash list
+
+# Återställ senaste stash
+git stash pop                # Tar bort från stash
+git stash apply              # Behåller i stash
+
+# Återställ specifik stash
+git stash pop stash@{1}
+
+# Ta bort stash
+git stash drop
+git stash clear              # Ta bort alla
+```
+
+---
+
+## Beslutsträd - vilken guide behöver jag?
+
+### 🤔 Vad vill du göra?
+
+**Uppdatera din branch med ändringar från main?**
+→ [Guide 1: Uppdatera gammal feature-branch](länk)
+
+**Får du konflikter när du mergar/rebasar?**
+→ [Guide 2: Lösa merge-konflikter](länk)
+
+**Har du committat något du inte skulle?**
+- Fel filer, dåligt meddelande, glömt något?
+→ [Guide 3: Committat något fel](länk)
+
+**Är du på fel branch?**
+- Committade på main istället för feature-branch?
+→ [Guide 4: Committat på fel branch](länk)
+
+**Har du uncommitted changes och behöver byta branch?**
+→ [Guide 5: Uncommitted changes och branch-byte](länk)
+
+**Har din PR fått feedback?**
+- Behöver göra ändringar, squasha commits?
+→ [Guide 6: PR feedback och ändringar](länk)
+
+**Ska ni jobba två personer på samma branch?**
+→ [Guide 7: Samarbete på samma feature](länk)
+
+**Måste ni fixa en akut bugg i produktion?**
+→ [Guide 8: Hotfix i produktion](länk)
+
+**Är main bruten och blockerar teamet?**
+→ [Guide 9: Main är bruten](länk)
+
+**Vill du hitta när en bugg introducerades?**
+→ [Guide 10: Hitta när och var en bugg introducerades](länk)
+
+---
+
+## Team-conventions och best practices
+
+### Commit-meddelanden
+
+**Format:**
+```
+Type: Short summary (max 50 chars)
+
+Longer description if needed (wrap at 72 chars)
+- Bullet points OK
+- Explain WHY, not what
+
+Fixes #123
+```
+
+**Types:**
+- `Fix:` Bugfix
+- `Feat:` Ny feature
+- `Refactor:` Omstrukturering (ej funktionell ändring)
+- `Docs:` Dokumentation
+- `Test:` Tester
+- `Chore:` Underhåll (dependencies, build, etc)
+
+**Exempel:**
+```
+Fix: Prevent null pointer in payment processing
+
+Added null checks for user and payment method before
+processing payment. This prevents crashes when user
+session expires during checkout.
+
+Fixes #456
+```
+
+### Branch-namngivning
+
+**Konventioner:**
+```
+feature/user-login
+feature/JIRA-123-payment-flow
+bugfix/fix-null-pointer
+hotfix/critical-security-issue
+refactor/extract-user-service
+```
+
+**Regler:**
+- Lowercase
+- Kebab-case (bindestreck)
+- Beskrivande
+- Inkludera ticket-nummer om ni har
+
+### Workflow
+
+**Typisk feature-workflow:**
+```bash
+# 1. Starta från senaste main
+git checkout main
+git pull origin main
+
+# 2. Skapa feature-branch
+git checkout -b feature/user-login
+
+# 3. Jobba och committa ofta
+# ... kod ...
+git add .
+git commit -m "Feat: Add login form"
+
+# 4. Push till remote
+git push origin feature/user-login
+
+# 5. Uppdatera med main regelbundet
+git fetch origin
+git merge origin/main  # eller rebase
+
+# 6. Skapa PR när klar
+
+# 7. Efter merge, ta bort branch
+git checkout main
+git pull origin main
+git branch -d feature/user-login
+git push origin --delete feature/user-login
+```
+
+### Code Review best practices
+
+**Som författare:**
+- ✅ Små PR:s (max 400 rader)
+- ✅ Tydlig beskrivning av vad och varför
+- ✅ Tester inkluderade
+- ✅ Självgranska innan du ber om review
+- ✅ Uppdatera med main före review
+
+**Som reviewer:**
+- ✅ Ge konstruktiv feedback
+- ✅ Fokusera på logik, inte kodstil
+- ✅ Fråga om du inte förstår
+- ✅ Godkänn snabbt om inga blockers
+
+### När ska man merge vs rebase?
+
+**Använd merge:**
+- ✅ På delade branches (main, develop)
+- ✅ När du är osäker
+- ✅ För att bevara historik
+- ✅ För merge-commits som dokumentation
+
+**Använd rebase:**
+- ✅ På dina privata feature-branches
+- ✅ För ren, linjär historik
+- ✅ Innan du skapar PR
+- ❌ ALDRIG på publika/delade branches
+
+### Commit-storlek
+
+**Bra commit:**
+- En logisk enhet av arbete
+- Alla tester passerar
+- Kan förklaras i en mening
+- 50-200 rader (riktlinje)
+
+**För stora:**
+```
+"Refactor entire authentication system + add new features + fix bugs"
+→ Dela upp i flera commits!
+```
+
+**För små:**
+```
+"Fix typo"
+"Fix another typo"
+"Fix lint error"
+→ Squasha ihop eller använd --amend
+```
+
+---
+
+## Snabbreferens - Cheat Sheet
+
+### Daglig användning
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git status` | Se vad som ändrats |
+| `git diff` | Se ändringar (unstaged) |
+| `git add .` | Lägg till alla ändringar |
+| `git commit -m "msg"` | Committa |
+| `git push` | Pusha till remote |
+| `git pull` | Hämta och merga från remote |
+| `git log --oneline` | Se commit-historik |
+
+### Branches
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git branch` | Visa branches |
+| `git checkout -b name` | Skapa och byt till branch |
+| `git checkout name` | Byt branch |
+| `git merge name` | Merga branch in i current |
+| `git branch -d name` | Ta bort branch |
+
+### Ångra
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git restore file` | Ångra ändringar i fil |
+| `git restore --staged file` | Ta bort från staging |
+| `git commit --amend` | Ändra senaste commit |
+| `git reset --soft HEAD~1` | Ångra commit (behåll ändringar) |
+| `git reset --hard HEAD~1` | Ångra commit (ta bort ändringar) |
+| `git revert abc123` | Skapa commit som ångrar |
+
+### Stash
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git stash` | Spara uncommitted changes |
+| `git stash pop` | Återställ senaste stash |
+| `git stash list` | Visa alla stashes |
+| `git stash drop` | Ta bort stash |
+
+### Remote
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git fetch origin` | Hämta från remote |
+| `git pull origin main` | Hämta och merga |
+| `git push origin branch` | Pusha branch |
+| `git push --force-with-lease` | Force push (säkrare) |
+
+### Historik och sökning
+
+| Kommando | Beskrivning |
+|----------|-------------|
+| `git log` | Visa commits |
+| `git log --oneline --graph` | Kompakt med graf |
+| `git show abc123` | Visa specifik commit |
+| `git blame file` | Se vem som skrev varje rad |
+| `git bisect start` | Starta binärsökning |
+
+### IntelliJ Shortcuts
+
+| Shortcut | Beskrivning |
+|----------|-------------|
+| `Ctrl+K` | Commit dialog |
+| `Ctrl+Shift+K` | Push dialog |
+| `Ctrl+T` | Update Project (pull) |
+| `Alt+9` | Öppna Git-fönster |
+| `Ctrl+Alt+Z` | Uncommit |
+| `Alt+F12` | Terminal |
+
+### Vanliga kombinationer
+
+**Starta ny feature:**
+```bash
+git checkout main
+git pull
+git checkout -b feature/new-thing
+```
+
+**Uppdatera med main:**
+```bash
+git fetch origin
+git merge origin/main
+# eller
+git pull --rebase origin main
+```
+
+**Fixa senaste commit:**
+```bash
+# Gör ändringar
+git add .
+git commit --amend --no-edit
+git push --force-with-lease
+```
+
+**Temporary save (stash):**
+```bash
+git stash
+git checkout other-branch
+# ... arbeta ...
+git checkout original-branch
+git stash pop
+```
+
+---
+
+## Felsökning - "Hjälp, något gick fel!"
+
+### "I accidentally committed to main!"
+→ [Guide 4: Committat på fel branch](länk)
+
+### "I have merge conflicts!"
+→ [Guide 2: Lösa merge-konflikter](länk)
+
+### "I committed sensitive data!"
+→ [Guide 3: Committat något fel](länk) - Rotera credentials FÖRST!
+
+### "Main is broken!"
+→ [Guide 9: Main är bruten](länk) - Revert omedelbart!
+
+### "I lost my changes!"
+```bash
+# Kolla reflog - Git sparar nästan allt
+git reflog
+
+# Hitta ditt commit/stash
+# Återställ
+git checkout abc123
+# eller
+git cherry-pick abc123
+```
+
+### "I can't push!"
+```bash
+# Vanligen: remote har nya commits
+git pull --rebase
+# Lös konflikter om det uppstår
+git push
+```
+
+### "Git says 'detached HEAD'!"
+```bash
+# Du är inte på någon branch
+# Skapa branch från nuvarande position:
+git checkout -b recovery-branch
+
+# Eller återgå till main:
+git checkout main
+```
+
+---
+
+## Resurser och lärande
+
+### Officiell dokumentation
+- [Git Documentation](https://git-scm.com/doc)
+- [Pro Git Book](https://git-scm.com/book/en/v2) (gratis, bra!)
+
+### Interaktiva tutorials
+- [Learn Git Branching](https://learngitbranching.js.org/) - Visuell Git-lärande
+- [Git Immersion](https://gitimmersion.com/) - Hands-on tutorial
+
+### Visualisering
+- [Git Visualizer](https://git-school.github.io/visualizing-git/)
+- GitKraken / SourceTree - GUI-verktyg
+
+### Cheat Sheets
+- [GitHub Git Cheat Sheet](https://education.github.com/git-cheat-sheet-education.pdf)
+- [Atlassian Git Cheat Sheet](https://www.atlassian.com/git/tutorials/atlassian-git-cheatsheet)
+
+---
+
+## Viktiga principer att komma ihåg
+
+✅ **Commit ofta** - Små, logiska enheter
+✅ **Pull före push** - Uppdatera innan du delar
+✅ **Brancha lätt** - Branches är billiga
+✅ **Testa före commit** - Bryt inte bygget
+✅ **Skriv bra meddelanden** - Framtida dig tackar
+✅ **Kommunicera** - Håll teamet uppdaterat
+✅ **Merge main ofta** - Undvik stora konflikter
+✅ **Backup med push** - Push regelbundet
+✅ **Läs felmeddelanden** - Git förklarar ofta vad som är fel
+✅ **Våga experimentera** - Git gör det säkert att testa
+
+**Kom ihåg:** Git är ett säkerhetsnät, inte en fälla. Nästan allt går att ångra!
